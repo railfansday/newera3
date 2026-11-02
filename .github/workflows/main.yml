@@ -1,0 +1,65 @@
+name: Scrape RSS & Generate HTML
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install feedparser requests beautifulsoup4 lxml
+
+      # 1. IMPORT (Scraper)
+      - name: Jalankan Import (Scraper)
+        run: python populargoogle.py
+
+      # 2. EXPORT (Generate HTML)
+      - name: Jalankan Export (HTML & SEO)
+        run: python posisi11sr.py
+
+      # 3. UPLOAD ARTIFACT
+      - name: Upload artifact HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: output-html
+          path: |
+            semua_artikel.html
+            sitemap.xml
+            robots.txt
+          retention-days: 3
+
+      # 4. COMMIT & PUSH (Anti Error jika file kosong)
+      - name: Commit & Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Gunakan || true agar tidak crash jika file tidak ditemukan
+          git add semua_artikel.html sitemap.xml robots.txt || true
+          
+          git diff --staged --quiet && echo "Tidak ada perubahan" && exit 0
+          
+          git commit -m "Update otomatis dari GitHub Actions [skip ci]"
+          git pull --rebase origin main || true
+          git push
