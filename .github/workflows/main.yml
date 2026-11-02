@@ -1,9 +1,9 @@
-name: Scrape RSS & Generate HTML
+name: Scrape & Export Berita
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:          # Tombol manual di tab Actions
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 */6 * * *'     # Opsional: jalankan otomatis tiap 6 jam
 
 permissions:
   contents: write
@@ -29,37 +29,35 @@ jobs:
           pip install -r requirements.txt
           pip install feedparser requests beautifulsoup4 lxml
 
-      # 1. IMPORT (Scraper)
-      - name: Jalankan Import (Scraper)
-        run: python populargoogle.py
+      # ===== JALANKAN FILE GABUNGAN ANDA =====
+      - name: Jalankan Scraper & Export
+        run: python importexport.py
 
-      # 2. EXPORT (Generate HTML)
-      - name: Jalankan Export (HTML & SEO)
-        run: python posisi11sr.py
-
-      # 3. UPLOAD ARTIFACT
+      # ===== UPLOAD ARTIFACT (Untuk Berjaga-jaga) =====
       - name: Upload artifact HTML
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: output-html
           path: |
-            semua_artikel.html
+            *.html
             sitemap.xml
             robots.txt
           retention-days: 3
 
-      # 4. COMMIT & PUSH (Anti Error jika file kosong)
+      # ===== COMMIT & PUSH KE REPO =====
       - name: Commit & Push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Gunakan || true agar tidak crash jika file tidak ditemukan
-          git add semua_artikel.html sitemap.xml robots.txt || true
+          # Ambil semua file HTML, sitemap, dan robots
+          git add *.html sitemap.xml robots.txt || true
           
+          # Jika tidak ada perubahan, berhenti dengan sukses
           git diff --staged --quiet && echo "Tidak ada perubahan" && exit 0
           
+          # Commit dan Push
           git commit -m "Update otomatis dari GitHub Actions [skip ci]"
           git pull --rebase origin main || true
           git push
